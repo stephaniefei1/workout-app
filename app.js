@@ -160,7 +160,7 @@ document.addEventListener("click", (event) => {
   if (action === "export") { const blob = new Blob([JSON.stringify(state, null, 2)], {type:"application/json"}); const url = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = url; a.download = `lift-log-backup-${iso(new Date())}.json`; a.click(); URL.revokeObjectURL(url); return; }
   if (action === "clear-data") { if (confirm("Clear all workout logs from this browser? This cannot be undone unless you exported a backup.")) { state = defaultState(); clearInterval(timerId); event.target.closest(".modal")?.remove(); render(); toast("All logs cleared"); } return; }
 });
-function saveWeight(target) {
+function saveWeight(target, fillLater = false) {
   if (!target.matches("[data-weight]")) return;
   const r = record(); r.exercises ||= {};
   const exerciseIndex = target.dataset.weight;
@@ -170,7 +170,7 @@ function saveWeight(target) {
   weights[setIndex] = target.value;
 
   // A weight is a convenient starting point for later sets, never an overwrite.
-  if (target.value !== "") {
+  if (fillLater && target.value !== "") {
     document.querySelectorAll(`[data-weight="${exerciseIndex}"]`).forEach((input) => {
       const otherSet = Number(input.dataset.set);
       if (otherSet > setIndex && !weights[otherSet]) {
@@ -190,7 +190,7 @@ document.addEventListener("change", (event) => {
   if (target.matches("[data-steps]")) { r.steps = target.value; save(); }
   if (target.matches("[data-start-date]")) { state.startDate = target.value; save(); render(); event.target.closest(".modal")?.remove(); toast("Program dates updated"); }
   if (target.matches("[data-import]")) { const file = target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const incoming = JSON.parse(reader.result); if (!incoming || typeof incoming !== "object") throw Error(); state = { ...defaultState(), ...incoming }; save(); event.target.closest(".modal")?.remove(); render(); toast("Backup restored"); } catch { toast("That backup could not be read"); } }; reader.readAsText(file); }
-  saveWeight(target);
+  saveWeight(target, true);
 });
 document.addEventListener("input", (event) => saveWeight(event.target));
 
