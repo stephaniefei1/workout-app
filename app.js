@@ -131,7 +131,7 @@ function liftView(task, rec) {
 }
 function exerciseCard(exercise, index, rec) {
   const logged = rec.exercises?.[index] || {}; const values = logged.weights || [];
-  return `<article class="card exercise ${logged.complete ? "done" : ""}"><div class="exercise-head"><input class="check" aria-label="Mark ${escapeHtml(exercise.name)} complete" type="checkbox" data-exercise="${index}" ${logged.complete ? "checked" : ""}/><div class="exercise-title"><h3>${exercise.name}</h3><p class="prescription">${exercise.sets} sets × ${exercise.reps} reps · tempo ${exercise.tempo}</p></div><a class="video" href="${exercise.video}" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(exercise.name)} demo">▶</a></div><div class="sets">${Array.from({length: exercise.sets}, (_, set) => `<div class="set-row"><span class="set-label">Set ${set + 1}</span><label>${exercise.reps}<input class="weight" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Weight" value="${escapeHtml(values[set] ?? "")}" data-weight="${index}" data-set="${set}" aria-label="${exercise.name}, set ${set + 1}, weight in ${state.unit}" /></label><span class="caption">${state.unit}</span></div>`).join("")}</div><p class="detail">${exercise.note}</p></article>`;
+  return `<article class="card exercise ${logged.complete ? "done" : ""}"><div class="exercise-head"><input class="check" aria-label="Mark ${escapeHtml(exercise.name)} complete" type="checkbox" data-exercise="${index}" ${logged.complete ? "checked" : ""}/><div class="exercise-title"><h3>${exercise.name}</h3><p class="prescription">${exercise.sets} sets × ${exercise.reps} reps · tempo ${exercise.tempo}</p></div><a class="video" href="${exercise.video}" target="_blank" rel="noopener" aria-label="Watch ${escapeHtml(exercise.name)} demo">▶</a></div><div class="sets">${Array.from({length: exercise.sets}, (_, set) => `<div class="set-row"><span class="set-label">Set ${set + 1}</span><label>${exercise.reps}<input class="weight" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Weight" value="${escapeHtml(values[set] ?? "")}" data-weight="${index}" data-set="${set}" aria-label="${exercise.name}, set ${set + 1}, weight in ${state.unit}" /></label><span class="caption">${state.unit}</span></div>`).join("")}</div><p class="detail">${exercise.note} Enter a weight to fill later blank sets; edit each set anytime.</p></article>`;
 }
 function cardioView(task, rec) { const remaining = rec.timerSeconds ?? task.minutes * 60; return `<section class="card cardio"><span class="eyebrow">Today’s session</span><h2>${task.minutes} minutes easy cardio</h2><p class="caption">The guide suggests a walk or incline walk at 5 km/h / 3 mph. Keep it conversational.</p><div class="timer" data-timer-display>${formatTimer(remaining)}</div><div class="inline-actions"><button class="primary" data-action="timer">${rec.timerRunning ? "Pause timer" : "Start timer"}</button><button class="secondary" data-action="reset-timer">Reset</button><label class="warm-row" style="border:0;padding:4px 0"><input class="check" type="checkbox" data-cardio-complete ${rec.complete ? "checked" : ""}/><span>Cardio complete</span></label></div></section>${stepsCard(rec)}`; }
 function restView(rec) { return `<section class="card"><span class="eyebrow">Recovery day</span><h2>Rest, walk, and recharge</h2><p class="caption" style="margin-top:8px">There is no scheduled resistance session today. Your step target still counts.</p><div class="inline-actions"><label class="warm-row" style="border:0;padding:4px 0"><input class="check" type="checkbox" data-rest-complete ${rec.complete ? "checked" : ""}/><span>Mark recovery day complete</span></label></div></section>${stepsCard(rec)}`; }
@@ -169,7 +169,28 @@ document.addEventListener("change", (event) => {
   if (target.matches("[data-start-date]")) { state.startDate = target.value; save(); render(); event.target.closest(".modal")?.remove(); toast("Program dates updated"); }
   if (target.matches("[data-import]")) { const file = target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const incoming = JSON.parse(reader.result); if (!incoming || typeof incoming !== "object") throw Error(); state = { ...defaultState(), ...incoming }; save(); event.target.closest(".modal")?.remove(); render(); toast("Backup restored"); } catch { toast("That backup could not be read"); } }; reader.readAsText(file); }
 });
-document.addEventListener("input", (event) => { const target = event.target; if (!target.matches("[data-weight]")) return; const r = record(); r.exercises ||= {}; const i = target.dataset.weight; r.exercises[i] ||= {}; r.exercises[i].weights ||= []; r.exercises[i].weights[target.dataset.set] = target.value; save(); });
+document.addEventListener("input", (event) => {
+  const target = event.target;
+  if (!target.matches("[data-weight]")) return;
+  const r = record(); r.exercises ||= {};
+  const exerciseIndex = target.dataset.weight;
+  const setIndex = Number(target.dataset.set);
+  r.exercises[exerciseIndex] ||= {}; r.exercises[exerciseIndex].weights ||= [];
+  const weights = r.exercises[exerciseIndex].weights;
+  weights[setIndex] = target.value;
+
+  // A weight is a convenient starting point for later sets, never an overwrite.
+  if (target.value !== "") {
+    document.querySelectorAll(`[data-weight="${exerciseIndex}"]`).forEach((input) => {
+      const otherSet = Number(input.dataset.set);
+      if (otherSet > setIndex && !weights[otherSet]) {
+        weights[otherSet] = target.value;
+        input.value = target.value;
+      }
+    });
+  }
+  save();
+});
 
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
 render();
