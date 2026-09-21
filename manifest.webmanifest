@@ -1,0 +1,10 @@
+{
+  "name": "Lift Log - Fat Loss Guide",
+  "short_name": "Lift Log",
+  "description": "Your private workout tracker for the 6 Week Fat Loss Guide.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f6f4ef",
+  "theme_color": "#151515",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
