@@ -190,9 +190,10 @@ document.addEventListener("change", (event) => {
   if (target.matches("[data-steps]")) { r.steps = target.value; save(); }
   if (target.matches("[data-start-date]")) { state.startDate = target.value; save(); render(); event.target.closest(".modal")?.remove(); toast("Program dates updated"); }
   if (target.matches("[data-import]")) { const file = target.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const incoming = JSON.parse(reader.result); if (!incoming || typeof incoming !== "object") throw Error(); state = { ...defaultState(), ...incoming }; save(); event.target.closest(".modal")?.remove(); render(); toast("Backup restored"); } catch { toast("That backup could not be read"); } }; reader.readAsText(file); }
-  saveWeight(target, true);
+  saveWeight(target);
 });
 document.addEventListener("input", (event) => saveWeight(event.target));
+document.addEventListener("focusout", (event) => saveWeight(event.target, true));
 
 if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
 render();

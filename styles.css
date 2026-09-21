@@ -28,4 +28,4 @@ h1,h2,h3,p { margin:0; } h1 { font-size:1.45rem; letter-spacing:-.04em; } h2 { f
 .modal { position:fixed; inset:0; z-index:40; display:grid; place-items:end center; background:#0006; padding:16px; }.modal > div { width:min(100%,520px); background:var(--paper); border-radius:24px; padding:21px; box-shadow:0 18px 50px #0004; }.modal h2 { margin-bottom:9px; }.modal p { color:var(--muted); line-height:1.5; font-size:.86rem; }.modal .inline-actions { margin-top:18px; }.setup-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); }.setup-row:first-of-type { border-top:0; }.file-label { position:relative; overflow:hidden; }.file-label input { position:absolute; inset:0; opacity:0; cursor:pointer; }
 @media (min-width:620px) { #app { padding-top:28px; } .exercise { padding:19px; } .warm-list { grid-template-columns:1fr 1fr; column-gap:18px; }.days { gap:8px; }.day { min-height:82px; } }
 /* iOS only zooms focused fields below 16px; keep workout entry at the safe size. */
-input.weight { font-size:1rem; }
+input.weight { font-size:16px !important; }

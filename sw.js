@@ -1,4 +1,4 @@
-const CACHE = "lift-log-fat-loss-v4";
+const CACHE = "lift-log-fat-loss-v5";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => event.waitUntil(
