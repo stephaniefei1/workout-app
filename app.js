@@ -117,6 +117,18 @@ function silentDemo(exercise) { const id = youtubeId(exercise.video); if (!id) r
 function pct(done, all) { return all ? Math.round((done / all) * 100) : 0; }
 function workoutDone(rec, exercises) { return exercises.filter((_, i) => rec.exercises?.[i]?.complete).length; }
 function isDayComplete(week, day) { const r = state.records[key(week, day)] || {}; const task = taskFor(week, day); return task.type === "lift" ? workoutDone(r, task.exercises) === task.exercises.length : task.type === "cardio" ? !!r.complete : day === 6 ? !!r.complete : false; }
+function previousExerciseWeights(exerciseName) {
+  const selectedIndex = (state.selectedWeek - 1) * 7 + state.selectedDay;
+  for (let scheduleIndex = selectedIndex - 1; scheduleIndex >= 0; scheduleIndex--) {
+    const week = Math.floor(scheduleIndex / 7) + 1; const day = scheduleIndex % 7;
+    const task = taskFor(week, day);
+    if (task.type !== "lift") continue;
+    const exerciseIndex = task.exercises.findIndex((exercise) => exercise.name === exerciseName);
+    const weights = exerciseIndex < 0 ? null : state.records[key(week, day)]?.exercises?.[exerciseIndex]?.weights;
+    if (weights?.some((weight) => weight != null && weight !== "")) return weights;
+  }
+  return [];
+}
 function toast(message) { const node = document.createElement("div"); node.className = "toast"; node.textContent = message; document.body.append(node); setTimeout(() => node.remove(), 2300); }
 
 function header() { return `<header class="app-header"><div><span class="eyebrow">6 week program</span><h1>Lift Log</h1></div><button class="icon-btn" data-action="settings" aria-label="Open settings">⚙</button></header>`; }
@@ -141,8 +153,15 @@ function liftView(task, rec) {
   <button class="primary finish" data-action="finish-lift">${exercisesDone === task.exercises.length ? "Workout complete ✓" : "Finish workout"}</button>`;
 }
 function exerciseCard(exercise, index, rec) {
-  const logged = rec.exercises?.[index] || {}; const values = logged.weights || [];
-  return `<article class="card exercise ${logged.complete ? "done" : ""}"><div class="exercise-head"><input class="check" aria-label="Mark ${escapeHtml(exercise.name)} complete" type="checkbox" data-exercise="${index}" ${logged.complete ? "checked" : ""}/><div class="exercise-title"><h3>${exercise.name}</h3><p class="prescription">${exercise.sets} sets × ${exercise.reps} reps · tempo ${exercise.tempo}</p></div><a class="video" href="${exercise.video}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(exercise.name)} demo in YouTube">▶</a></div>${silentDemo(exercise)}<div class="sets">${Array.from({length: exercise.sets}, (_, set) => `<div class="set-row"><span class="set-label">Set ${set + 1}</span><label>${exercise.reps}<input class="weight" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Weight" value="${escapeHtml(values[set] ?? "")}" data-weight="${index}" data-set="${set}" aria-label="${exercise.name}, set ${set + 1}, weight in ${state.unit}" /></label><span class="caption">${state.unit}</span></div>`).join("")}</div><p class="detail">${exercise.note} Enter a weight to fill later blank sets; edit each set anytime.</p></article>`;
+  const logged = rec.exercises?.[index] || {}; const values = logged.weights || []; const priorWeights = previousExerciseWeights(exercise.name);
+  const sets = Array.from({length: exercise.sets}, (_, set) => {
+    const savedWeight = values[set]; const suggestedWeight = savedWeight == null ? priorWeights[set] : null;
+    const suggested = suggestedWeight != null && suggestedWeight !== "";
+    const displayedWeight = savedWeight == null ? (suggested ? suggestedWeight : "") : savedWeight;
+    return `<div class="set-row"><span class="set-label">Set ${set + 1}</span><label>${exercise.reps}<input class="weight ${suggested ? "suggested" : ""}" type="number" inputmode="decimal" min="0" step="0.5" placeholder="Weight" value="${escapeHtml(displayedWeight)}" data-weight="${index}" data-set="${set}" ${suggested ? 'data-suggested="true"' : ""} aria-label="${exercise.name}, set ${set + 1}, weight in ${state.unit}${suggested ? ", suggested from your prior workout" : ""}" /></label><span class="caption">${state.unit}</span></div>`;
+  }).join("");
+  const carryoverTip = priorWeights.some((weight) => weight != null && weight !== "") ? "Gray weights are from your prior session—tap one to replace it." : "Enter a weight to fill later blank sets; edit each set anytime.";
+  return `<article class="card exercise ${logged.complete ? "done" : ""}"><div class="exercise-head"><input class="check" aria-label="Mark ${escapeHtml(exercise.name)} complete" type="checkbox" data-exercise="${index}" ${logged.complete ? "checked" : ""}/><div class="exercise-title"><h3>${exercise.name}</h3><p class="prescription">${exercise.sets} sets × ${exercise.reps} reps · tempo ${exercise.tempo}</p></div><a class="video" href="${exercise.video}" target="_blank" rel="noopener" aria-label="Open ${escapeHtml(exercise.name)} demo in YouTube">▶</a></div>${silentDemo(exercise)}<div class="sets">${sets}</div><p class="detail">${exercise.note} ${carryoverTip}</p></article>`;
 }
 function cardioView(task, rec) { const remaining = rec.timerSeconds ?? task.minutes * 60; return `<section class="card cardio"><span class="eyebrow">Today’s session</span><h2>${task.minutes} minutes easy cardio</h2><p class="caption">The guide suggests a walk or incline walk at 5 km/h / 3 mph. Keep it conversational.</p><div class="timer" data-timer-display>${formatTimer(remaining)}</div><div class="inline-actions"><button class="primary" data-action="timer">${rec.timerRunning ? "Pause timer" : "Start timer"}</button><button class="secondary" data-action="reset-timer">Reset</button><label class="warm-row" style="border:0;padding:4px 0"><input class="check" type="checkbox" data-cardio-complete ${rec.complete ? "checked" : ""}/><span>Cardio complete</span></label></div></section>${stepsCard(rec)}`; }
 function restView(rec) { return `<section class="card"><span class="eyebrow">Recovery day</span><h2>Rest, walk, and recharge</h2><p class="caption" style="margin-top:8px">There is no scheduled resistance session today. Your step target still counts.</p><div class="inline-actions"><label class="warm-row" style="border:0;padding:4px 0"><input class="check" type="checkbox" data-rest-complete ${rec.complete ? "checked" : ""}/><span>Mark recovery day complete</span></label></div></section>${stepsCard(rec)}`; }
@@ -204,7 +223,7 @@ function saveWeight(target, fillLater = false) {
   if (fillLater && target.value !== "") {
     document.querySelectorAll(`[data-weight="${exerciseIndex}"]`).forEach((input) => {
       const otherSet = Number(input.dataset.set);
-      if (otherSet > setIndex && !weights[otherSet]) {
+      if (otherSet > setIndex && !weights[otherSet] && !input.value) {
         weights[otherSet] = target.value;
         input.value = target.value;
       }
@@ -224,6 +243,11 @@ document.addEventListener("change", (event) => {
   saveWeight(target);
 });
 document.addEventListener("input", (event) => saveWeight(event.target));
+document.addEventListener("focusin", (event) => {
+  const target = event.target;
+  if (!target.matches("[data-suggested]")) return;
+  target.classList.remove("suggested"); target.removeAttribute("data-suggested"); target.select();
+});
 document.addEventListener("focusout", (event) => saveWeight(event.target, true));
 document.addEventListener("toggle", (event) => {
   const details = event.target;
